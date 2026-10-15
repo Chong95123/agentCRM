@@ -1,0 +1,398 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f6f7fb">
+  <title>AgentDesk | Property CRM</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Authentication screen -->
+  <section id="auth-screen" class="auth-screen">
+    <div class="auth-card">
+      <div class="brand-mark">A</div>
+      <p class="eyebrow">PROPERTY MANAGEMENT</p>
+      <h1>Welcome to AgentDesk</h1>
+      <p class="muted">Manage your clients, deals and follow-ups in one place.</p>
+
+      <form id="auth-form">
+        <label for="auth-email">Email address</label>
+        <input id="auth-email" type="email" placeholder="you@example.com" required>
+
+        <label for="auth-password">Password</label>
+        <input id="auth-password" type="password" placeholder="At least 6 characters" minlength="6" required>
+
+        <button id="auth-submit" class="btn btn-primary btn-full" type="submit">
+          Sign in
+        </button>
+      </form>
+
+      <button id="toggle-auth" class="text-button" type="button">
+        New here? Create an account
+      </button>
+      <p id="auth-message" class="message" role="status"></p>
+      <p class="small muted">Your account and CRM data will be stored using Supabase.</p>
+    </div>
+  </section>
+
+  <!-- Main application -->
+  <div id="app-shell" class="app-shell hidden">
+    <aside class="sidebar">
+      <a href="#" class="brand" data-view="dashboard">
+        <span class="brand-mark">A</span>
+        <span>
+          <strong>AgentDesk</strong>
+          <small>PROPERTY CRM</small>
+        </span>
+      </a>
+
+      <p class="nav-heading">WORKSPACE</p>
+      <nav class="main-nav" aria-label="Main navigation">
+        <button class="nav-link active" data-view="dashboard">
+          <span class="nav-icon">▦</span> Dashboard
+        </button>
+        <button class="nav-link" data-view="clients">
+          <span class="nav-icon">♙</span> Clients
+          <span id="nav-client-count" class="nav-count">0</span>
+        </button>
+        <button class="nav-link" data-view="followups">
+          <span class="nav-icon">◷</span> Follow-ups
+        </button>
+        <button class="nav-link" data-view="pipeline">
+          <span class="nav-icon">⇢</span> Sales pipeline
+        </button>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <div class="sidebar-tip">
+          <span class="tip-icon">✦</span>
+          <strong>Stay organised</strong>
+          <p>Record every conversation and never miss an important follow-up.</p>
+        </div>
+        <div class="profile-row">
+          <div class="avatar" id="user-avatar">A</div>
+          <div class="profile-details">
+            <strong id="user-email">Agent account</strong>
+            <small>Property agent</small>
+          </div>
+          <button id="sign-out" class="icon-button" title="Sign out" aria-label="Sign out">↪</button>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">YOUR WORKSPACE</p>
+          <h1 id="page-title">Dashboard</h1>
+          <p id="page-subtitle" class="muted">Here's an overview of your client activity.</p>
+        </div>
+        <div class="topbar-actions">
+          <span id="today-label" class="today-label"></span>
+          <button id="add-client-top" class="btn btn-primary">＋ Add client</button>
+        </div>
+      </header>
+
+      <div id="global-message" class="global-message hidden" role="status"></div>
+
+      <!-- Dashboard -->
+      <section id="view-dashboard" class="view">
+        <div class="welcome-banner">
+          <div>
+            <p class="eyebrow">AGENT OVERVIEW</p>
+            <h2>Build better client relationships.</h2>
+            <p>Keep track of your leads, conversations and next steps.</p>
+          </div>
+          <div class="welcome-decoration" aria-hidden="true">✧</div>
+        </div>
+
+        <div class="stats-grid">
+          <article class="stat-card">
+            <div class="stat-top">
+              <span>Total clients</span>
+              <span class="stat-icon icon-purple">♙</span>
+            </div>
+            <strong id="stat-clients" class="stat-value">—</strong>
+            <p class="stat-note">All your recorded contacts</p>
+          </article>
+
+          <article class="stat-card">
+            <div class="stat-top">
+              <span>Active leads</span>
+              <span class="stat-icon icon-blue">↗</span>
+            </div>
+            <strong id="stat-leads" class="stat-value">—</strong>
+            <p class="stat-note">Leads still in progress</p>
+          </article>
+
+          <article class="stat-card">
+            <div class="stat-top">
+              <span>Follow-ups due</span>
+              <span class="stat-icon icon-orange">◷</span>
+            </div>
+            <strong id="stat-followups" class="stat-value">—</strong>
+            <p class="stat-note">Due today or overdue</p>
+          </article>
+
+          <article class="stat-card">
+            <div class="stat-top">
+              <span>Deals won</span>
+              <span class="stat-icon icon-green">✓</span>
+            </div>
+            <strong id="stat-won" class="stat-value">—</strong>
+            <p class="stat-note">Clients marked as won</p>
+          </article>
+        </div>
+
+        <div class="dashboard-grid">
+          <section class="panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Recent clients</h2>
+                <p class="muted">Your latest client records</p>
+              </div>
+              <button class="text-button" data-view="clients">View all →</button>
+            </div>
+            <div id="recent-clients" class="table-wrap">
+              <div class="empty-state">Sign in to load your clients.</div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Upcoming follow-ups</h2>
+                <p class="muted">Keep the conversation moving</p>
+              </div>
+              <button class="text-button" data-view="followups">View all →</button>
+            </div>
+            <div id="dashboard-followups" class="followup-list">
+              <div class="empty-state">Your follow-ups will appear here.</div>
+            </div>
+          </section>
+        </div>
+
+        <section class="panel pipeline-panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Sales pipeline</h2>
+              <p class="muted">See where your clients stand</p>
+            </div>
+            <button class="text-button" data-view="pipeline">Open pipeline →</button>
+          </div>
+          <div id="dashboard-pipeline" class="pipeline-summary"></div>
+        </section>
+      </section>
+
+      <!-- Clients -->
+      <section id="view-clients" class="view hidden">
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Client directory</h2>
+              <p class="muted">Manage buyers, sellers, landlords and tenants.</p>
+            </div>
+            <button id="add-client-directory" class="btn btn-primary">＋ Add client</button>
+          </div>
+
+          <div class="toolbar">
+            <div class="search-box">
+              <span>⌕</span>
+              <input id="client-search" type="search" placeholder="Search name, phone or email">
+            </div>
+            <select id="stage-filter" aria-label="Filter clients by stage">
+              <option value="">All stages</option>
+              <option value="New Lead">New Lead</option>
+              <option value="Contacted">Contacted</option>
+              <option value="Viewing">Viewing</option>
+              <option value="Negotiation">Negotiation</option>
+              <option value="Won">Won</option>
+              <option value="Lost">Lost</option>
+            </select>
+          </div>
+
+          <div id="clients-table" class="table-wrap">
+            <div class="empty-state">Loading client directory...</div>
+          </div>
+          <div id="clients-pagination" class="pagination"></div>
+        </section>
+      </section>
+
+      <!-- Follow-ups -->
+      <section id="view-followups" class="view hidden">
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Follow-up centre</h2>
+              <p class="muted">Review clients who need your attention.</p>
+            </div>
+            <button class="btn btn-secondary" data-view="clients">Browse clients</button>
+          </div>
+          <div class="followup-legend">
+            <span><i class="legend-dot dot-red"></i> Overdue</span>
+            <span><i class="legend-dot dot-orange"></i> Due today</span>
+            <span><i class="legend-dot dot-green"></i> Upcoming</span>
+          </div>
+          <div id="all-followups" class="followup-list">
+            <div class="empty-state">Loading follow-ups...</div>
+          </div>
+        </section>
+      </section>
+
+      <!-- Pipeline -->
+      <section id="view-pipeline" class="view hidden">
+        <div class="pipeline-intro">
+          <h2>Your deal journey</h2>
+          <p class="muted">Move each client through the stages as your conversation progresses.</p>
+        </div>
+        <div id="pipeline-board" class="pipeline-board"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Add/edit client dialog -->
+  <dialog id="client-dialog" class="modal">
+    <form id="client-form" class="modal-form">
+      <div class="modal-heading">
+        <div>
+          <p class="eyebrow">CLIENT MANAGEMENT</p>
+          <h2 id="client-dialog-title">Add new client</h2>
+        </div>
+        <button type="button" class="icon-button" data-close-dialog aria-label="Close">✕</button>
+      </div>
+
+      <input id="client-id" type="hidden">
+
+      <div class="form-grid">
+        <div class="form-field full-width">
+          <label for="client-name">Full name *</label>
+          <input id="client-name" required maxlength="120" placeholder="Client's full name">
+        </div>
+
+        <div class="form-field">
+          <label for="client-phone">Phone number</label>
+          <input id="client-phone" type="tel" maxlength="40" placeholder="+60 12-345 6789">
+        </div>
+
+        <div class="form-field">
+          <label for="client-email">Email</label>
+          <input id="client-email" type="email" maxlength="180" placeholder="client@example.com">
+        </div>
+
+        <div class="form-field">
+          <label for="client-type">Client type</label>
+          <select id="client-type">
+            <option>Buyer</option>
+            <option>Seller</option>
+            <option>Landlord</option>
+            <option>Tenant</option>
+            <option>Investor</option>
+            <option>Other</option>
+          </select>
+        </div>
+
+        <div class="form-field">
+          <label for="client-stage">Sales stage</label>
+          <select id="client-stage">
+            <option>New Lead</option>
+            <option>Contacted</option>
+            <option>Viewing</option>
+            <option>Negotiation</option>
+            <option>Won</option>
+            <option>Lost</option>
+          </select>
+        </div>
+
+        <div class="form-field full-width">
+          <label for="client-property">Property / area of interest</label>
+          <input id="client-property" maxlength="200" placeholder="e.g. 2-bedroom condo, Setapak">
+        </div>
+
+        <div class="form-field">
+          <label for="client-budget">Budget (RM)</label>
+          <input id="client-budget" type="number" min="0" step="1000" placeholder="e.g. 350000">
+        </div>
+
+        <div class="form-field">
+          <label for="client-followup">Next follow-up</label>
+          <input id="client-followup" type="date">
+        </div>
+
+        <div class="form-field full-width">
+          <label for="client-notes">Notes</label>
+          <textarea id="client-notes" rows="3" maxlength="5000" placeholder="Requirements, preferences or important details..."></textarea>
+        </div>
+      </div>
+
+      <p id="client-form-message" class="message" role="status"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" data-close-dialog>Cancel</button>
+        <button id="save-client" type="submit" class="btn btn-primary">Save client</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Client details and interaction history -->
+  <dialog id="detail-dialog" class="modal detail-modal">
+    <div class="modal-form">
+      <div class="modal-heading">
+        <div>
+          <p class="eyebrow">CLIENT PROFILE</p>
+          <h2 id="detail-client-name">Client details</h2>
+          <p id="detail-client-meta" class="muted"></p>
+        </div>
+        <button type="button" class="icon-button" data-close-dialog aria-label="Close">✕</button>
+      </div>
+
+      <div id="detail-client-info" class="detail-info"></div>
+
+      <div class="history-heading">
+        <div>
+          <h3>Interaction history</h3>
+          <p class="muted">Record calls, messages and meetings.</p>
+        </div>
+      </div>
+
+      <form id="interaction-form" class="interaction-form">
+        <input id="interaction-client-id" type="hidden">
+        <div class="form-field">
+          <label for="interaction-type">Interaction type</label>
+          <select id="interaction-type">
+            <option>Call</option>
+            <option>WhatsApp</option>
+            <option>Email</option>
+            <option>Meeting</option>
+            <option>Property viewing</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="interaction-date">Date</label>
+          <input id="interaction-date" type="date" required>
+        </div>
+        <div class="form-field full-width">
+          <label for="interaction-notes">Conversation notes *</label>
+          <textarea id="interaction-notes" rows="3" maxlength="5000" required placeholder="What was discussed? What is the next step?"></textarea>
+        </div>
+        <button id="save-interaction" class="btn btn-primary" type="submit">＋ Add interaction</button>
+        <p id="interaction-message" class="message" role="status"></p>
+      </form>
+
+      <div id="interaction-history" class="history-list">
+        <div class="empty-state">No interactions recorded yet.</div>
+      </div>
+
+      <div class="modal-actions">
+        <button id="edit-client-from-detail" class="btn btn-secondary" type="button">Edit client</button>
+        <button type="button" class="btn btn-primary" data-close-dialog>Done</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Load the Supabase browser library before our app code -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="script.js"></script>
+</body>
+</html>
