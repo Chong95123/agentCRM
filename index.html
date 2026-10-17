@@ -174,6 +174,18 @@
           </section>
         </div>
 
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Upcoming birthdays</h2>
+              <p class="muted">Clients celebrating today or within the next 7 days</p>
+            </div>
+          </div>
+          <div id="dashboard-birthdays" class="followup-list">
+            <div class="empty-state">No upcoming birthdays this week.</div>
+          </div>
+        </section>
+
         <section class="panel pipeline-panel">
           <div class="panel-heading">
             <div>
@@ -212,6 +224,8 @@
               <option value="Lost">Lost</option>
             </select>
           </div>
+
+
 
           <div id="clients-table" class="table-wrap">
             <div class="empty-state">Loading client directory...</div>
@@ -282,6 +296,11 @@
         </div>
 
         <div class="form-field">
+          <label for="client-birthday">Birthday</label>
+          <input id="client-birthday" type="date">
+        </div>
+
+        <div class="form-field">
           <label for="client-type">Client type</label>
           <select id="client-type">
             <option>Buyer</option>
@@ -332,6 +351,26 @@
         <button id="save-client" type="submit" class="btn btn-primary">Save client</button>
       </div>
     </form>
+  </dialog>
+
+  <!-- Birthday pop-up modal -->
+  <dialog id="birthday-popup" class="modal">
+    <div class="modal-form">
+      <div class="modal-heading">
+        <div>
+          <p class="eyebrow">🎂 CELEBRATION TODAY</p>
+          <h2>Client birthday reminder</h2>
+          <p class="muted">You have client(s) celebrating their birthday today!</p>
+        </div>
+        <button type="button" class="icon-button" data-close-dialog aria-label="Close">✕</button>
+      </div>
+
+      <div id="birthday-popup-list" class="followup-list" style="margin-bottom: 20px;"></div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" data-close-dialog>Got it</button>
+      </div>
+    </div>
   </dialog>
 
   <!-- Client details and interaction history -->

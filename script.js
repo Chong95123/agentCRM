@@ -29,6 +29,7 @@ let currentView = "dashboard";
 let authMode = "signin";
 let activeDetailClientId = null;
 let busy = false;
+let birthdayPopupShown = false;
 
 const STAGES = [
   "New Lead",
@@ -206,6 +207,146 @@ function getFollowupLabel(client) {
   return "Not scheduled";
 }
 
+
+// ================================================
+// Birthday Calculation Helpers
+// ================================================
+
+function parseBirthday(birthdayValue) {
+  if (!birthdayValue) return null;
+  // Expected format: YYYY-MM-DD
+  const parts = String(birthdayValue).split("-");
+  if (parts.length !== 3) return null;
+
+  const month = parseInt(parts[1], 10);
+  const day = parseInt(parts[2], 10);
+
+  if (Number.isNaN(month) || Number.isNaN(day)) return null;
+  return { month, day };
+}
+
+function getBirthdayStatus(birthdayValue, today = new Date()) {
+  const bday = parseBirthday(birthdayValue);
+  if (!bday) return null;
+
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth() + 1;
+  const currentDay = today.getDate();
+
+  // Create date for this year's birthday
+  // Handle leap day (Feb 29) on non-leap years by falling back to Feb 28 or Mar 1 (we'll check Feb 28/29 safely)
+  let targetYear = currentYear;
+  let targetMonth = bday.month;
+  let targetDay = bday.day;
+
+  // Check if Feb 29 on non-leap year
+  if (targetMonth === 2 && targetDay === 29) {
+    const isLeap = (targetYear % 4 === 0 && targetYear % 100 !== 0) || (targetYear % 400 === 0);
+    if (!isLeap) targetDay = 28;
+  }
+
+  let targetDate = new Date(targetYear, targetMonth - 1, targetDay);
+  targetDate.setHours(0, 0, 0, 0);
+
+  const normalizedToday = new Date(currentYear, currentMonth - 1, currentDay);
+  normalizedToday.setHours(0, 0, 0, 0);
+
+  let diffTime = targetDate.getTime() - normalizedToday.getTime();
+  let diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+  // If the birthday already passed this year, look at next year's occurrence
+  if (diffDays < 0) {
+    targetYear = currentYear + 1;
+    if (targetMonth === 2 && targetDay === 29) {
+      const isLeapNext = (targetYear % 4 === 0 && targetYear % 100 !== 0) || (targetYear % 400 === 0);
+      targetDay = isLeapNext ? 29 : 28;
+    }
+    targetDate = new Date(targetYear, targetMonth - 1, targetDay);
+    targetDate.setHours(0, 0, 0, 0);
+    diffTime = targetDate.getTime() - normalizedToday.getTime();
+    diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+  }
+
+  return {
+    diffDays,
+    isToday: diffDays === 0,
+    isUpcoming: diffDays > 0 && diffDays <= 7,
+    label: diffDays === 0 ? "Birthday today" : diffDays === 1 ? "In 1 day" : `In ${diffDays} days`
+  };
+}
+
+function getUpcomingBirthdays() {
+  return clients
+    .filter(client => client.birthday)
+    .map(client => ({
+      client,
+      status: getBirthdayStatus(client.birthday)
+    }))
+    .filter(item => item.status && item.status.diffDays <= 7)
+    .sort((a, b) => a.status.diffDays - b.status.diffDays);
+}
+
+
+// ================================================
+// Birthday Pop-up & Greetings
+// ================================================
+
+function checkTodayBirthdayPopup() {
+  if (birthdayPopupShown) return;
+
+  const upcoming = getUpcomingBirthdays();
+  console.log("All upcoming/today birthdays detected:", upcoming); // Debug log to F12
+
+  const todayBirthdays = upcoming.filter(item => item.status && item.status.isToday);
+  console.log("Filtered birthdays due strictly today:", todayBirthdays); // Debug log to F12
+
+  if (!todayBirthdays.length) return;
+
+  const container = document.getElementById("birthday-popup-list");
+  if (!container) return;
+
+  container.innerHTML = todayBirthdays.map(({ client }) => `
+    <article class="followup-item">
+      <div class="followup-indicator due-today"></div>
+      <div class="followup-content">
+        <strong>${escapeHTML(client.full_name)}</strong>
+        <p>${escapeHTML(client.client_type || "Client")} · ${escapeHTML(client.phone || client.email || "No contact info")}</p>
+        <span class="followup-date due-today">Birthday today!</span>
+      </div>
+      <button class="btn btn-secondary copy-birthday-btn" style="font-size: 11px; padding: 6px 10px;"
+        data-client-name="${escapeHTML(client.full_name)}" type="button">
+        📋 Copy greeting
+      </button>
+    </article>
+  `).join("");
+
+  container.querySelectorAll(".copy-birthday-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      copyBirthdayGreeting(btn.dataset.clientName || "");
+    });
+  });
+
+  const dialog = document.getElementById("birthday-popup");
+  if (dialog && !dialog.open) {
+    dialog.showModal();
+    birthdayPopupShown = true;
+  }
+}
+
+function copyBirthdayGreeting(clientName) {
+  const greeting = `Hi ${clientName}, wishing you a very Happy Birthday! 🎂 May this year bring you good health, happiness, and continued success. Thank you for keeping in touch!`;
+
+  navigator.clipboard.writeText(greeting).then(() => {
+    showGlobalMessage(`Birthday greeting copied for ${clientName}!`, "success");
+  }).catch(() => {
+    showGlobalMessage("Unable to copy greeting to clipboard.", "error");
+  });
+}
+
+
+
+
+
 // ================================================
 // Authentication
 // ================================================
@@ -302,6 +443,27 @@ async function handleSignOut() {
   setMessage("auth-message", "");
 }
 
+async function handleSignOut() {
+  if (!supabaseClient) return;
+
+  const { error } = await supabaseClient.auth.signOut();
+
+  if (error) {
+    showGlobalMessage(error.message, "error");
+    return;
+  }
+
+  currentUser = null;
+  clients = [];
+  interactions = [];
+  birthdayPopupShown = false;
+
+  document.getElementById("app-shell").classList.add("hidden");
+  document.getElementById("auth-screen").classList.remove("hidden");
+  document.getElementById("auth-form").reset();
+  setMessage("auth-message", "");
+}
+
 async function showApp() {
   if (!currentUser) return;
 
@@ -323,8 +485,10 @@ async function showApp() {
 
   await refreshData();
   renderView(currentView);
-}
 
+  // Trigger today's birthday pop-up automatically once per session
+  window.setTimeout(checkTodayBirthdayPopup, 800);
+}
 // ================================================
 // Supabase data access
 // ================================================
@@ -378,6 +542,7 @@ async function saveClientRecord(formData, clientId) {
     full_name: formData.full_name,
     phone: formData.phone || null,
     email: formData.email || null,
+    birthday: formData.birthday || null,
     client_type: formData.client_type,
     stage: formData.stage,
     property_interest: formData.property_interest || null,
@@ -473,6 +638,10 @@ function renderView(view) {
 
 function updateNavigationCounts() {
   document.getElementById("nav-client-count").textContent = clients.length;
+  
+  // Optional: update badge or indicator if birthdays are due today
+  const todayBirthdays = getUpcomingBirthdays().filter(item => item.status.isToday);
+  // You can hook this up to a sidebar badge element if desired!
 }
 
 // ================================================
@@ -496,6 +665,7 @@ function renderDashboard() {
 
   renderRecentClients();
   renderDashboardFollowups();
+  renderDashboardBirthdays();
   renderPipelineSummary();
 }
 
@@ -541,8 +711,41 @@ function renderRecentClients() {
   `;
 }
 
+function renderDashboardBirthdays() {
+  const container = document.getElementById("dashboard-birthdays");
+  if (!container) return;
+
+  const upcoming = getUpcomingBirthdays();
+
+  if (!upcoming.length) {
+    container.innerHTML = '<div class="empty-state">No upcoming birthdays this week.</div>';
+    return;
+  }
+
+  container.innerHTML = upcoming.map(({ client, status }) => `
+    <article class="followup-item">
+      <div class="followup-indicator ${status.isToday ? "due-today" : "upcoming"}"></div>
+      <div class="followup-content">
+        <strong>
+          <button class="table-link" data-action="details" data-id="${escapeHTML(client.id)}">
+            ${escapeHTML(client.full_name)}
+          </button>
+        </strong>
+        <p>${escapeHTML(client.client_type || "Client")} · ${escapeHTML(formatDate(client.birthday))}</p>
+        <span class="followup-date ${status.isToday ? "due-today" : "upcoming"}">
+          ${escapeHTML(status.label)}
+        </span>
+      </div>
+      <button class="icon-button" title="View client" aria-label="View client"
+        data-action="details" data-id="${escapeHTML(client.id)}">↗</button>
+    </article>
+  `).join("");
+}
+
 function renderDashboardFollowups() {
   const container = document.getElementById("dashboard-followups");
+  if (!container) return;
+
   const list = clients
     .filter(client => client.follow_up_date && isActiveClient(client))
     .sort((a, b) => a.follow_up_date.localeCompare(b.follow_up_date))
@@ -556,6 +759,7 @@ function renderDashboardFollowups() {
 
   container.innerHTML = list.map(renderFollowupItem).join("");
 }
+
 
 function renderPipelineSummary() {
   const container = document.getElementById("dashboard-pipeline");
@@ -763,6 +967,7 @@ function openClientDialog(client = null) {
   document.getElementById("client-name").value = client?.full_name || "";
   document.getElementById("client-phone").value = client?.phone || "";
   document.getElementById("client-email").value = client?.email || "";
+  document.getElementById("client-birthday").value = client?.birthday || "";
   document.getElementById("client-type").value = client?.client_type || "Buyer";
   document.getElementById("client-stage").value = client?.stage || "New Lead";
   document.getElementById("client-property").value = client?.property_interest || "";
@@ -786,6 +991,7 @@ async function handleClientSave(event) {
     full_name: document.getElementById("client-name").value.trim(),
     phone: document.getElementById("client-phone").value.trim(),
     email: document.getElementById("client-email").value.trim(),
+    birthday: document.getElementById("client-birthday").value,
     client_type: document.getElementById("client-type").value,
     stage: document.getElementById("client-stage").value,
     property_interest: document.getElementById("client-property").value.trim(),
@@ -848,6 +1054,10 @@ function openClientDetails(clientId) {
     <div class="detail-info-item">
       <span>Email</span>
       <strong>${escapeHTML(client.email || "Not provided")}</strong>
+    </div>
+    <div class="detail-info-item">
+      <span>Birthday</span>
+      <strong>${escapeHTML(formatDate(client.birthday))}</strong>
     </div>
     <div class="detail-info-item">
       <span>Property interest</span>
